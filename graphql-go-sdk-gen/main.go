@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/wisdomatom/graphql-sdk-gen/graphql-go-sdk-gen/generator"
 	"os"
+
+	"github.com/wisdomatom/graphql-sdk-gen/graphql-go-sdk-gen/generator"
 )
 
 var (
@@ -27,14 +28,16 @@ func main() {
 	}
 	schemaPath := flag.String("schema", "", "path to introspection json (required)")
 	pkg := flag.String("pkg", "client", "generate golang package name")
-	outPath := flag.String("out", "./", "output file")
+	outPath := flag.String("out", "./sdk", "output file")
 	scalarsPath := flag.String("scalars", "", "optional scalars.json mapping")
-	flag.BoolVar(&useOmitEmp, "omit-empty", false, "append ,omitempty to json tags")
+	flag.BoolVar(&useOmitEmp, "omit-empty", true, "append ,omitempty to json tags")
 	flag.Parse()
 
 	conf.OutPath = *outPath
 	conf.JsonOmitEmpty = useOmitEmp
 	conf.GoPkgName = *pkg
+
+	os.MkdirAll(*outPath, 0755)
 
 	if *schemaPath == "" {
 		flag.Usage()

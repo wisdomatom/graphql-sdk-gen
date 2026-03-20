@@ -1,18 +1,19 @@
-import { Client } from './output/client.js';
-import * as field from './output/field.js';
-import * as operation from './output/operations.js';
-import * as selector from './output/selector.js';
-import * as model from './output/model.js';
+import { Client } from './sdk/client.js';
+import * as field from './sdk/field.js';
+import * as operation from './sdk/operations.js';
+import * as selector from './sdk/selector.js';
+import * as model from './sdk/model.js';
+import 'dotenv/config';
 
 async function main() {
     const client = new Client("http://127.0.0.1:8001/api/v1/graphql");
-    // client.setHeaders({ authorization: process.env.token || '' });
+    client.setHeaders({ authorization: process.env.token || '' });
 
     try {
         const queryArticles = new operation.QueryArticles()
             .where({ 
                 journal_IN: ['Science', 'Nature'], 
-                publishedAt_GE: '2026-01-01', 
+                publishedAt_GE: '2025-01-01T00:00:00Z', 
                 AND: [
                     {
                         abstractVec_SIMILAR: {

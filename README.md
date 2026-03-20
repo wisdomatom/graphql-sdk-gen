@@ -32,55 +32,80 @@ This project provides tools to generate strongly-typed SDKs from a GraphQL intro
 ```bash
 cd graphql-node-sdk-gen
 npm install
-npm run generate ../introspection.json --out sdk
+npm run generate -- --schema ../introspection.json --out sdk
 npm run test
 ```
 
+
 **Show DSL to GraphQL Translation:**
 ```typescript
-import * as field from './output/field.js';
-import * as operation from './output/operations.js';
-import * as selector from './output/selector.js';
+import { Client } from './sdk/client.js';
+import * as field from './sdk/field.js';
+import * as operation from './sdk/operations.js';
+import * as selector from './sdk/selector.js';
+import * as model from './sdk/model.js';
+import 'dotenv/config';
 
-const queryArticles = new operation.QueryArticles()
-    .where({ 
-        journal_IN: ['Science', 'Nature'], 
-        publishedAt_GE: '2026-01-01', 
-        AND: [{
-            abstractVec_SIMILAR: { vector: [0.1, 0.2, 0.3], topK: 10 }
-        }] 
-    })
-    .option({ limit: 10 }) // Pagination
-    .select(
-        new selector.ArticleSelector()
+async function main() {
+    const client = new Client("http://127.0.0.1:8001/api/v1/graphql");
+    client.setHeaders({ authorization: process.env.token || '' });
+
+    try {
+        const queryArticles = new operation.QueryArticles()
+            .where({ 
+                journal_IN: ['Science', 'Nature'], 
+                publishedAt_GE: '2025-01-01T00:00:00Z', 
+                AND: [
+                    {
+                        abstractVec_SIMILAR: {
+                            vector: [0.1, 0.2, 0.3],
+                            topK: 10,
+                        }
+                    }
+                ] })
+            .option({ limit: 10 })
             .select(
-                field.FieldArticle.id, 
-                field.FieldArticle.title, 
-                field.FieldArticle.journal,
-                field.FieldArticle.citationCount,
-                field.FieldArticle.publishedAt,
-                field.FieldArticle.abstractVec_SCORE,
-                field.FieldArticle.abstractVec_DISTANCE,
-            )
-            .authors({}, {}, 
-                new selector.AuthorSelector().select(
-                    field.FieldAuthor.id, 
-                    field.FieldAuthor.name
-                )
-            )
-            .references({}, {}, 
-                new selector.ArticleSelector().select(
-                    field.FieldArticle.id, 
-                    field.FieldArticle.title
-                )
-            )
-    );
+                new selector.ArticleSelector()
+                    .select(
+                        field.FieldArticle.id, 
+                        field.FieldArticle.title, 
+                        field.FieldArticle.journal,
+                        field.FieldArticle.citationCount,
+                        field.FieldArticle.publishedAt,
+                        field.FieldArticle.abstractVec_SCORE,
+                        field.FieldArticle.abstractVec_DISTANCE,
+                    ).authors({}, {}, 
+                        new selector.AuthorSelector().select(
+                            field.FieldAuthor.id, 
+                            field.FieldAuthor.name,
+                        )
+                    ).references({}, {}, 
+                        new selector.ArticleSelector().select(
+                            field.FieldArticle.id, 
+                            field.FieldArticle.title,
+                        )
+                    )
+            );
 
-// Core Logic: Build the GraphQL Query and Variables
-const [query, variables] = queryArticles.build();
+        const [query, vars] = queryArticles.build();
+        console.log("Generated Query:", query);
+        console.log("Variables:", JSON.stringify(vars, null, 2));
 
-console.log("Generated GraphQL:\n", query);
-console.log("Variables:\n", JSON.stringify(variables, null, 2));
+        // const res = await queryArticles.do(client);
+        // res?.forEach(u => {
+        //     console.log(u.id);
+        //     console.log(u.title);
+        //     console.log(u.publishedAt);
+        //     console.log(u.abstractVec_SCORE);
+        // });
+        // console.log("Results:", res);
+
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+main();
 ```
 
 ### 2. Python
@@ -143,48 +168,88 @@ go run main.go --schema ../introspection.json --out ./sdk --pkg sdk
 
 **Show DSL to GraphQL Translation:**
 ```go
-import "your-project/sdk"
+package main
 
-query := sdk.NewQueryArticles()
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"testing"
+	"time"
 
-query.Where(sdk.ArticleWhere{
-    Journal_IN: []string{"Science", "Nature"},
-    PublishedAt_GE: "2026-01-01",
-    AND: []sdk.ArticleWhere{
-        {
-            AbstractVec_SIMILAR: &sdk.VectorSearchInput{
-                Vector: []float64{0.1, 0.2, 0.3},
-                TopK:   10,
-            },
-        },
-    },
-}).Option(sdk.ArticleOption{
-    Limit: 10,
-})
+	"github.com/wisdomatom/graphql-sdk-gen/graphql-go-sdk-gen/sdk"
+)
 
-query.Select(func(s *sdk.SelectorArticle) {
-    s.Select(
-        sdk.ArticleFieldId, 
-        sdk.ArticleFieldTitle,
-        sdk.ArticleFieldJournal,
-        sdk.ArticleFieldAbstractVec_SCORE,
-        sdk.ArticleFieldAbstractVec_DISTANCE,
-    )
-    // Nested Graph Query: Authors
-    s.SelectAuthors(func(a *sdk.SelectorAuthor) {
-        a.Select(sdk.AuthorFieldId, sdk.AuthorFieldName)
-    })
-    // Recursive Graph Query: References
-    s.SelectReferences(func(r *sdk.SelectorArticle) {
-        r.Select(sdk.ArticleFieldId, sdk.ArticleFieldTitle)
-    })
-})
+type authTransport struct {
+	wrappedTransport http.RoundTripper
+	token            string
+}
 
-// Core Logic: Build the GraphQL Query and Variables
-gqlString, variables := query.Build()
+func (t *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	transport := t.wrappedTransport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+	newReq := req.Clone(req.Context())
+	newReq.Header.Set("Authorization", "Bearer "+t.token)
+	return transport.RoundTrip(newReq)
+}
 
-fmt.Println("Generated GraphQL:\n", gqlString)
-fmt.Printf("Variables:\n %+v\n", variables)
+var (
+	client = sdk.NewClient("http://127.0.0.1:8001/api/v1/graphql", &http.Client{
+		Transport: &authTransport{
+			token: os.Getenv("token"),
+		}})
+)
+
+func TestSDK(t *testing.T) {
+	query := sdk.NewQueryQueryArticles()
+	query.Where(sdk.ArticleWhere{
+		JournalIN: []string{"Science", "Nature"},
+		PublishedAtGE: sdk.Ptr(time.Now()),
+		AND: []sdk.ArticleWhere{
+			{
+				AbstractVecSIMILAR: &sdk.ArticleAbstractVecSimilarInput{
+					Vector: []float64{0.1, 0.2, 0.3},
+					TopK:   sdk.Ptr(10),
+				},
+			},
+		},
+	}).Option(sdk.ArticleOption{
+		Limit: sdk.Ptr(int64(10)),
+	})
+
+	query.Select(func(s *sdk.SelectorArticle) {
+		s.Select(
+			sdk.ArticleFieldId, 
+			sdk.ArticleFieldTitle,
+			sdk.ArticleFieldJournal,
+			sdk.ArticleFieldAbstractVecSCORE,
+			sdk.ArticleFieldAbstractVecDISTANCE,
+		)
+		// Nested Graph Query: Authors
+		s.SelectAuthors(sdk.AuthorWhere{}, sdk.AuthorOption{}, func(a *sdk.SelectorAuthor) {
+			a.Select(sdk.AuthorFieldId, sdk.AuthorFieldName)
+		})
+		// Recursive Graph Query: References
+		s.SelectReferences(sdk.ArticleWhere{}, sdk.ArticleOption{}, func(r *sdk.SelectorArticle) {
+			r.Select(sdk.ArticleFieldId, sdk.ArticleFieldTitle)
+		})
+	})
+
+	// Core Logic: Build the GraphQL Query and Variables
+	gqlString, variables := query.Build()
+
+	fmt.Println("Generated GraphQL:\n", gqlString)
+	bts, _ := json.MarshalIndent(variables, "", "  ")
+	fmt.Printf("Variables:\n %+v\n", string(bts))
+	// res, err := query.Do(context.Background(), client)
+	// if err != nil {
+	// 	t.Fatalf("Do failed: %v", err)
+	// }
+	// fmt.Printf("Results:\n %+v\n", res)
+}
 ```
 
 ---

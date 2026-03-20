@@ -266,10 +266,10 @@ async function renderAll(introspectionPath: string, outDir: string = OUT_DIR) {
 }
 
 program
-    .argument('<introspection>', 'Path to introspection JSON file')
-    .option('--out <dir>', 'Output directory', OUT_DIR)
-    .action((introspection, options) => {
-        renderAll(introspection, options.out).catch(err => {
+    .requiredOption('-s, --schema <path>', 'Path to introspection JSON file')
+    .option('-o, --out <dir>', 'Output directory', OUT_DIR)
+    .action((options) => {
+        renderAll(options.schema, options.out).catch(err => {
             console.error(err);
             process.exit(1);
         });
