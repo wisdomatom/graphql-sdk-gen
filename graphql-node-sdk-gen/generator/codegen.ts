@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const TEMPLATES_DIR = path.join(__dirname, 'templates');
-const OUT_DIR = path.join(__dirname, '..', 'output');
+const OUT_DIR = path.join(__dirname, '..', 'sdk');
 
 interface GraphQLType {
     kind: string;

@@ -325,6 +325,6 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="GraphQL -> Python dataclass SDK generator (templates)")
     parser.add_argument("introspection", help="Path to introspection JSON file")
-    parser.add_argument("--out", help="Output directory", default=None)
+    parser.add_argument("--out", help="Output directory", default='sdk')
     args = parser.parse_args()
     render_all(args.introspection, args.out)

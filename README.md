@@ -32,7 +32,7 @@ This project provides tools to generate strongly-typed SDKs from a GraphQL intro
 ```bash
 cd graphql-node-sdk-gen
 npm install
-npm run generate ../introspection.json
+npm run generate ../introspection.json --out sdk
 npm run test
 ```
 
@@ -88,24 +88,30 @@ console.log("Variables:\n", JSON.stringify(variables, null, 2));
 ```bash
 cd graphql-python-sdk-gen
 pip install -r requirements.txt
-python generator/codegen.py ../introspection.json
+python generator/codegen.py ../introspection.json --out sdk
 python test.py
 ```
 
 **Show DSL to GraphQL Translation:**
 ```python
-from output.operations import QueryArticles
-from output.selector import ArticleSelector, AuthorSelector
-from output.field import FieldArticle, FieldAuthor
-from output.model import ArticleWhere, VectorSearchInput
+from sdk.operations import QueryArticles
+from sdk.selector import ArticleSelector, AuthorSelector
+from sdk.field import FieldArticle, FieldAuthor
+from sdk.model import ArticleWhere, ArticleAbstractVecSimilarInput, ArticleOption, ArticleSort, SortDirection
+import json
+from sdk.client import Client, class_to_dict
+import os
+
+client = Client("http://127.0.0.1:8001/api/v1/graphql")
+client.headers = { "Authorization": "Bearer " + os.environ.get("token") }
 
 query = QueryArticles().where(
     ArticleWhere(
         journal_IN=['Science', 'Nature'],
-        publishedAt_GE='2026-01-01',
-        AND=[ArticleWhere(abstractVec_SIMILAR=VectorSearchInput(vector=[0.1, 0.2, 0.3], topK=10))]
+        publishedAt_GE='2025-01-01T00:00:00Z',
+        AND=[ArticleWhere(abstractVec_SIMILAR=ArticleAbstractVecSimilarInput(vector=[0.1, 0.2, 0.3], topK=10))]
     )
-).option(limit=10).select(
+).option(ArticleOption(limit=10, sort=ArticleSort(publishedAt=SortDirection.DESC))).select(
     ArticleSelector()
     .select(
         FieldArticle.id, 
@@ -124,9 +130,8 @@ query = QueryArticles().where(
 
 # Core Logic: Build the GraphQL Query and Variables
 gql_string, variables = query.build()
-
 print("Generated GraphQL:\n", gql_string)
-print("Variables:\n", variables)
+print("Variables:\n", json.dumps(class_to_dict(variables), indent=2))
 ```
 
 ### 3. Go
