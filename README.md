@@ -25,6 +25,24 @@ This project provides tools to generate strongly-typed SDKs from a GraphQL intro
 
 ---
 
+## What is introspection.json?
+
+The `introspection.json` is the result of a **GraphQL Introspection Query**. It contains the complete metadata of your GraphQL schema, including all types, fields, arguments, and directives. Our generators use this metadata to create the type-safe SDK.
+
+### How to get your own introspection file?
+
+You can obtain the introspection JSON from your GraphQL server using various tools:
+
+1. **Using [get-graphql-schema](https://www.npmjs.com/package/get-graphql-schema)** (Recommended):
+   ```bash
+   npx get-graphql-schema http://localhost:8080/graphql --json > introspection.json
+   ```
+
+2. **Using a CURL request**:
+   You can send a standard introspection query to your endpoint and save the response as a JSON file.
+
+---
+
 ## Quick Start
 
 ### 1. Node.js (TypeScript)
