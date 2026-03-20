@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/wisdomatom/graphql-go-sdk-gen/generator"
+	"github.com/wisdomatom/graphql-sdk-gen/graphql-go-sdk-gen/generator"
 	"os"
 )
 
