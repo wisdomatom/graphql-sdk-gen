@@ -265,4 +265,4 @@ Each subdirectory contains its own generator logic and templates. To add a new l
 
 ## License
 
-MIT
+Apache License 2.0
