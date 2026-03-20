@@ -1,0 +1,41 @@
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+
+export class Client {
+    private endpoint: string;
+    private headers: Record<string, string>;
+    private timeout: number;
+    private axiosInstance: AxiosInstance;
+
+    constructor(endpoint: string, headers?: Record<string, string>, timeout: number = 30000) {
+        this.endpoint = endpoint;
+        this.headers = headers || { 'Content-Type': 'application/json' };
+        this.timeout = timeout;
+        this.axiosInstance = axios.create({
+            baseURL: endpoint,
+            headers: this.headers,
+            timeout: this.timeout,
+        });
+    }
+
+    setHeaders(headers: Record<string, string>) {
+        this.headers = { ...this.headers, ...headers };
+        this.axiosInstance.defaults.headers.common = this.headers;
+    }
+
+    async do(query: string, variables: Record<string, any>): Promise<any> {
+        const payload = { query, variables };
+        try {
+            const resp = await this.axiosInstance.post('', payload);
+            const data = resp.data;
+            if (data && data.errors && data.errors.length > 0) {
+                throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+            }
+            return data.data;
+        } catch (error: any) {
+            if (error.response && error.response.data && error.response.data.errors) {
+                throw new Error(`GraphQL errors: ${JSON.stringify(error.response.data.errors)}`);
+            }
+            throw error;
+        }
+    }
+}

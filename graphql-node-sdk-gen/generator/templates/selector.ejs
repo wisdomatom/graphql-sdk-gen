@@ -1,0 +1,113 @@
+import { Field<%= fieldClasses.map(c => c.name).join(', Field') %> } from './field.js';
+
+export class Field {
+    name: string;
+    args: Record<string, { arg: any; arg_type: string }>;
+    children: Field[];
+
+    constructor(name: string) {
+        this.name = name;
+        this.args = {};
+        this.children = [];
+    }
+
+    toGraphql(indent: string = "", counter: { count: number } = { count: 0 }): string {
+        let s = indent + this.name;
+        const argParts: string[] = [];
+        for (const k in this.args) {
+            const v = this.args[k];
+            if (v.arg === undefined || v.arg === null) continue;
+            counter.count++;
+            argParts.push(`${k}: $${k}_${counter.count}`);
+        }
+
+        if (argParts.length > 0) {
+            s += "(" + argParts.join(", ") + ")";
+        }
+
+        if (this.children.length === 0) {
+            return s + "\n";
+        }
+
+        s += " {\n";
+        for (const c of this.children) {
+            s += c.toGraphql(indent + "  ", counter);
+        }
+        s += indent + "}\n";
+        return s;
+    }
+}
+
+export function collectVars(f: Field, vars: Record<string, any>, varTypes: Record<string, string>, counter: { count: number }) {
+    for (const k in f.args) {
+        const v = f.args[k];
+        if (v.arg === undefined || v.arg === null) continue;
+        counter.count++;
+        const varName = `${k}_${counter.count}`;
+        varTypes[varName] = v.arg_type;
+        vars[varName] = v.arg;
+    }
+    for (const c of f.children) {
+        collectVars(c, vars, varTypes, counter);
+    }
+}
+
+export function build(field: Field, kind: string): [string, Record<string, any>] {
+    const vars: Record<string, any> = {};
+    const varTypes: Record<string, string> = {};
+    const counter = { count: 0 };
+    collectVars(field, vars, varTypes, counter);
+
+    const keys = Object.keys(varTypes).sort();
+    const parts = keys.map(k => `$${k}: ${varTypes[k]}`);
+    let decl = parts.join(", ");
+    if (decl) {
+        decl = "(" + decl + ")";
+    }
+
+    const body = field.toGraphql("  ", { count: 0 });
+    const query = `${kind.toLowerCase()}${decl} {\n${body}}`;
+    return [query, vars];
+}
+
+<% selectors.forEach(function(m) { %>
+export class <%= m.name %>Selector {
+    field: Field;
+
+    constructor() {
+        this.field = new Field('');
+    }
+
+    select(...fields: Field<%= m.name %>[]) {
+        for (const f of fields) {
+            this.field.children.push(new Field(f));
+        }
+        return this;
+    }
+
+<% m.fields.forEach(function(f) { %>
+<% if (f.is_object) { %>
+    <%= f.name %>(<% f.args.forEach(function(arg, i) { %><%= arg.name %>?: <%= arg.type %><%= i < f.args.length - 1 ? ', ' : '' %><% }); %><% if (f.args.length > 0) { %>, <% } %>sel: <%= f.gql_type %>Selector) {
+        sel.field.name = "<%= f.name %>";
+        <% f.args.forEach(function(arg) { %>
+        sel.field.args["<%= arg.name %>"] = {
+            arg: <%= arg.name %>,
+            arg_type: "<%= arg.gql_type %>"
+        };
+        <% }); %>
+        this.field.children.push(sel.field);
+        return this;
+    }
+<% } else { %>
+    <%= f.name %>() {
+        this.field.children.push(new Field("<%= f.name %>"));
+        return this;
+    }
+<% } %>
+<% }); %>
+
+    getField() {
+        return this.field;
+    }
+}
+<% }); %>

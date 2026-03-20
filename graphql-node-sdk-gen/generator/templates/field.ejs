@@ -1,0 +1,7 @@
+<% fieldClasses.forEach(function(cls) { %>
+export enum Field<%= cls.name %> {
+<% cls.fields.forEach(function(field) { %>
+    <%= field.name %> = "<%= field.name %>",
+<% }); %>
+}
+<% }); %>

@@ -1,0 +1,8 @@
+{
+  "DateTime": "string",
+  "UUID": "string",
+  "BigDecimal": "number",
+  "ScalarDateTime": "string",
+  "ScalarInt": "number",
+  "ScalarJson": "any"
+}
