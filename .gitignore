@@ -1,5 +1,6 @@
 # Common
 output/
+sdk/
 client/
 .idea/
 .vscode/
