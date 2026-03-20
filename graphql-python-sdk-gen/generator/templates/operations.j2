@@ -1,0 +1,82 @@
+# output/operations.py
+from typing import Any, Dict, Optional
+from .selector import Field, build
+from .client import Client
+from .model import *
+from .selector import *
+import dacite
+from datetime import datetime
+
+# dacite configuration for type conversion
+def _parse_datetime(x):
+    if not isinstance(x, str):
+        return x
+    # Handle 'Z' and ensure it works with fromisoformat
+    s = x.replace('Z', '+00:00')
+    try:
+        return datetime.fromisoformat(s)
+    except ValueError:
+        # Fallback for older python versions or slightly different formats
+        return datetime.strptime(s.split('.')[0], '%Y-%m-%dT%H:%M:%S')
+
+DACITE_CONFIG = dacite.Config(type_hooks={
+    datetime: _parse_datetime
+})
+
+# Operation builders
+{% for op in ops %}
+class {{ op.name_pascal }}:
+    def __init__(self):
+        self.field = Field(name="{{ op.name }}")
+        {% if op.args|length > 0 %}
+        # initialize arg_types for this field
+        {% endif %}
+
+    {% for a in op.args %}
+    def {{ a.name }}(self, v: {{ a.type }}):
+        self.field.args["{{ a.name }}"] = {
+            "arg": v,
+            "arg_type": "{{ a.gql_type }}",
+        }
+        return self
+    {% endfor %}
+
+    {% if not op.return_is_scalar %}
+    def select(self, sel: {{ op.return_name }}Selector):
+        self.field.children.extend(sel.get_field().children)
+        return self
+    {% endif %}
+
+    def build(self):
+        q, vars = build(self.field, "{{ op.kind }}")
+        return q, vars
+
+    {% if not op.return_is_scalar %}
+    def do(self, client: Client) -> Optional[{{ op.return_type }}]:
+        q, vars = self.build()
+        data = client.do(q, vars)
+        if data is None:
+            return None
+        res = data.get("{{ op.name }}")
+        if res is None:
+            return None
+        {% if op.return_is_list %}
+        result = []
+        for d in res:
+            if d is None:
+                continue
+            result.append(dacite.from_dict({{ op.return_name  }}, d, config=DACITE_CONFIG))
+        return result
+        {% else %}
+        return dacite.from_dict({{ op.return_name  }}, res, config=DACITE_CONFIG)
+        {% endif  %}
+    {% else %}
+    def do(self, client: Client) ->  Optional[{{ op.return_type  }}]:
+        q, vars = self.build()
+        data = client.do(q, vars)
+        if data is None:
+            return None
+        return data.get("{{ op.name }}")
+    {% endif %}
+
+{% endfor %}

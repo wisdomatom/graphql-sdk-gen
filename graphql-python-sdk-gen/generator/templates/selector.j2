@@ -1,0 +1,111 @@
+# output/selector.py
+from __future__ import annotations
+from dataclasses import dataclass, field
+from typing import Any, Dict, List
+from .field import *
+from .model import *
+
+@dataclass
+class Field:
+    name: str
+    args: Dict[str, Any] = field(default_factory=dict)
+    arg_types: Dict[str, str] = field(default_factory=dict)
+    children: List["Field"] = field(default_factory=list)
+
+    def to_graphql(self, indent: str = "", counter: [int] = [0]) -> str:
+        s = indent + self.name
+        if self.args:
+            parts = []
+            for k, v in self.args.items():
+                if v.get('arg') is None:
+                    continue
+                counter[0] += 1
+                parts.append(f"{k}: ${k}_{counter[0]}")
+            if parts:
+                s += "(" + ", ".join(parts) + ")"
+        if not self.children:
+            return s + "\n"
+        s += " {\n"
+        for c in self.children:
+            s += c.to_graphql(indent + "  ", counter)
+        s += indent + "}\n"
+        return s
+
+
+def _collect_vars(f: Field, vars: Dict[str, Any], var_types: Dict[str, str], counter: List[int]):
+    if f is None:
+        return
+    for k, v in f.args.items():
+        if v.get('arg') is None:
+            continue
+        counter[0] += 1
+        var_name = f"{k}_{counter[0]}"
+        var_types[var_name] = v.get('arg_type')
+        vars[var_name] = v.get('arg')
+    for c in f.children:
+        _collect_vars(c, vars, var_types, counter)
+
+
+def build(field: Field, kind: str):
+    vars = {}
+    var_types = {}
+    counter = [0]
+    _collect_vars(field, vars, var_types, counter)
+
+    keys = sorted(var_types.keys())
+    parts = [f"${k}: {var_types[k]}" for k in keys]
+    decl = ", ".join(parts)
+    if decl:
+        decl = "(" + decl + ")"
+
+    body = field.to_graphql("  ", [0])
+
+    query = kind.lower() + decl + " {\n" + body + "}"
+    return query, vars
+
+
+# ---- SELECTOR CLASSES ----
+{% for m in selectors %}
+class {{ m["name"] }}Selector:
+    def __init__(self):
+        self.field = Field(name='')
+
+    def select(self, *fields: Field{{ m["name"] }}):
+        for f in fields:
+            self.field.children.append(Field(name=f))
+        return self
+
+{% for f in m["fields"] %}
+{% if f["is_object"] %}
+
+    {% if f["args_str"] %}
+    def {{ f["name"] }}(self, {{ f["args_str"] }}, sel: {{ f["gql_type"] }}Selector):
+        sel.field.name = "{{ f["name"] }}"
+        {% for arg in f["args"] %}
+        sel.field.args["{{ arg['name'] }}"] = {
+            "arg": {{ arg['name'] }},
+            "arg_type": "{{ arg['gql_type'] }}"
+        }
+        {% endfor %}
+        self.field.children.append(sel.field)
+
+        return self
+    {% else %}
+    def {{ f["name"] }}(self, sel: {{ f["gql_type"] }}Selector):
+        sel.field.name = "{{ f["name"] }}"
+        self.field.children.append(sel.field)
+        return self
+    {% endif %}
+
+{% else %}
+    # Scalar field
+    def {{ f["name"] }}(self):
+        self.field.children.append(Field(name="{{ f["name"] }}"))
+        return self
+
+{% endif %}
+{% endfor %}
+    def get_field(self):
+        return self.field
+
+{% endfor %}
