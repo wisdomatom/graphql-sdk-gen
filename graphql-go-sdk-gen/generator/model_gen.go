@@ -54,17 +54,19 @@ func genInterface(conf *GenerateConfig, f *jen.File, t TypeDef) {
 			Name: tf.Name,
 		})
 	}
-	genEnum(f, typeDefEnum)
 
-	f.Func().Params(jen.Id("q").Id(enumType)).Id("GetField").Params().Op("*").Id("Field").Block(
-		jen.Return(
-			jen.Op("&").Id("Field").Values(
-				jen.Dict{
-					jen.Id("Name"): jen.Id("string").Call(jen.Id("q")),
-				},
+	if len(typeDefEnum.EnumValues) > 0 {
+		genEnum(f, typeDefEnum)
+		f.Func().Params(jen.Id("q").Id(enumType)).Id("GetField").Params().Op("*").Id("Field").Block(
+			jen.Return(
+				jen.Op("&").Id("Field").Values(
+					jen.Dict{
+						jen.Id("Name"): jen.Id("string").Call(jen.Id("q")),
+					},
+				),
 			),
-		),
-	)
+		)
+	}
 	f.Line()
 }
 
@@ -108,17 +110,19 @@ func genObject(conf *GenerateConfig, f *jen.File, t TypeDef) {
 			Name: tf.Name,
 		})
 	}
-	genEnum(f, typeDefEnum)
 
-	f.Func().Params(jen.Id("q").Id(enumType)).Id("GetField").Params().Op("*").Id("Field").Block(
-		jen.Return(
-			jen.Op("&").Id("Field").Values(
-				jen.Dict{
-					jen.Id("Name"): jen.Id("string").Call(jen.Id("q")),
-				},
+	if len(typeDefEnum.EnumValues) > 0 {
+		genEnum(f, typeDefEnum)
+		f.Func().Params(jen.Id("q").Id(enumType)).Id("GetField").Params().Op("*").Id("Field").Block(
+			jen.Return(
+				jen.Op("&").Id("Field").Values(
+					jen.Dict{
+						jen.Id("Name"): jen.Id("string").Call(jen.Id("q")),
+					},
+				),
 			),
-		),
-	)
+		)
+	}
 
 	for _, iface := range t.Interfaces {
 		f.Func().Params(jen.Id(t.Name)).Id("Is" + iface.Name).Params().Block()

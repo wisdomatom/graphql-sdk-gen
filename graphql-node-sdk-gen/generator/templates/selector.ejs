@@ -1,4 +1,5 @@
-import { Field<%= fieldClasses.map(c => c.name).join(', Field') %> } from './field.js';
+import * as field from './field.js';
+import * as model from './model.js';
 
 export class Field {
     name: string;
@@ -77,17 +78,19 @@ export class <%= m.name %>Selector {
     constructor() {
         this.field = new Field('');
     }
-
-    select(...fields: Field<%= m.name %>[]) {
+<% if (m.fields.some(f => !f.is_object)) { %>
+    select(...fields: field.Field<%= m.name %>[]) {
         for (const f of fields) {
             this.field.children.push(new Field(f));
         }
         return this;
     }
+<% } %>
+<% m.fields.forEach(function(f) { -%>
+<% if (f.is_object) { -%>
 
-<% m.fields.forEach(function(f) { %>
-<% if (f.is_object) { %>
-    <%= f.name %>(<% f.args.forEach(function(arg, i) { %><%= arg.name %>?: <%= arg.type %><%= i < f.args.length - 1 ? ', ' : '' %><% }); %><% if (f.args.length > 0) { %>, <% } %>sel: <%= f.gql_type %>Selector) {
+    <%= f.name %>(<% f.args.forEach(function(arg) { %><%= arg.name %>?: <%= arg.is_primitive ? arg.type : 'model.' + arg.type %>, <% }); %>sel?: <%= f.gql_type %>Selector) {
+        if (!sel) return this;
         sel.field.name = "<%= f.name %>";
         <% f.args.forEach(function(arg) { %>
         sel.field.args["<%= arg.name %>"] = {
@@ -98,14 +101,14 @@ export class <%= m.name %>Selector {
         this.field.children.push(sel.field);
         return this;
     }
-<% } else { %>
+<% } else { -%>
+
     <%= f.name %>() {
         this.field.children.push(new Field("<%= f.name %>"));
         return this;
     }
-<% } %>
+<% } -%>
 <% }); %>
-
     getField() {
         return this.field;
     }

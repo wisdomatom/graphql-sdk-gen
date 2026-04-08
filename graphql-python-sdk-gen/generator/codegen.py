@@ -57,7 +57,7 @@ def extract_graphql_type(t: Dict[str, Any]):
         name, _, not_null, is_scalar = extract_graphql_type(t["ofType"])
         return name, True, not_null, is_scalar
     # base case
-    is_scalar = t.get("kind")  in ["SCALAR"]
+    is_scalar = t.get("kind") in ["SCALAR", "ENUM"]
 
     return t.get("name"), False, False, is_scalar
 

@@ -57,7 +57,7 @@ function extractGraphqlType(t: GraphQLType): [string | null, boolean, boolean, b
         const [name, , notNull, isScalar] = extractGraphqlType(t.ofType!);
         return [name, true, notNull, isScalar];
     }
-    const isScalar = t.kind === 'SCALAR';
+    const isScalar = t.kind === 'SCALAR' || t.kind === 'ENUM';
     return [t.name || null, false, false, isScalar];
 }
 
@@ -140,10 +140,12 @@ function prepareTemplateContext(types: GraphQLType[], typeMap: Map<string, Graph
                 const tsType = gqlTypeToTypeScript(f.type, scalarMap);
                 const fieldArgs = (f.args || []).map((arg: any) => {
                     const [argGType] = extractGraphqlType(arg.type);
+                    const tsType = gqlTypeToTypeScript(arg.type, scalarMap);
                     return {
                         name: arg.name,
-                        type: gqlTypeToTypeScript(arg.type, scalarMap),
-                        gql_type: argGType
+                        type: tsType,
+                        gql_type: argGType,
+                        is_primitive: Object.values(scalarMap).includes(tsType) || tsType.endsWith('[]') && Object.values(scalarMap).includes(tsType.replace('[]', ''))
                     };
                 }).sort((a: any, b: any) => a.name.localeCompare(b.name));
 
@@ -208,19 +210,27 @@ function prepareTemplateContext(types: GraphQLType[], typeMap: Map<string, Graph
         (root.fields || []).forEach((f: any) => {
             const args = (f.args || []).map((a: any) => {
                 const [gqlType] = extractGraphqlType(a.type);
-                return { name: a.name, type: gqlTypeToTypeScript(a.type, scalarMap), gql_type: gqlType };
+                const tsType = gqlTypeToTypeScript(a.type, scalarMap);
+                return {
+                    name: a.name,
+                    type: tsType,
+                    gql_type: gqlType,
+                    is_primitive: Object.values(scalarMap).includes(tsType) || tsType.endsWith('[]') && Object.values(scalarMap).includes(tsType.replace('[]', ''))
+                };
             }).sort((a: any, b: any) => a.name.localeCompare(b.name));
 
             const [retName, isList, , isScalar] = extractGraphqlType(f.type);
+            const retType = gqlTypeToTypeScript(f.type, scalarMap);
             ops.push({
                 name: f.name,
                 name_pascal: toPascalCase(f.name),
                 kind,
                 args,
                 return_name: retName,
-                return_type: gqlTypeToTypeScript(f.type, scalarMap),
+                return_type: retType,
                 return_is_list: isList,
-                return_is_scalar: isScalar
+                return_is_scalar: isScalar,
+                return_is_primitive: Object.values(scalarMap).includes(retType) || retType.endsWith('[]') && Object.values(scalarMap).includes(retType.replace('[]', ''))
             });
         });
     });

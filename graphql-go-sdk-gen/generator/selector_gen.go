@@ -28,21 +28,31 @@ func genSelector(conf *GenerateConfig, f *jen.File, tp TypeDef, objectMap map[st
 	)
 	f.Line()
 
-	f.Func().
-		Params(jen.Id("q").Op("*").Id(sel)).
-		Id("Select").
-		Params(jen.Id("fields").Op("...").Id(fmt.Sprintf("%vField", tp.Name))).
-		Op("*").Id(sel).
-		BlockFunc(func(body *jen.Group) {
-			body.For(jen.List(jen.Id("_"), jen.Id("f")).Op(":=").Range().Id("fields")).BlockFunc(func(loop *jen.Group) {
-				loop.Id("q").Dot("field").Dot("Children").
-					Op("=").Append(
-					jen.Id("q").Dot("field").Dot("Children"),
-					jen.Id("f").Dot("GetField").Call(),
-				)
+	hasScalar := false
+	for _, f := range tp.Fields {
+		if isGraphqlScalarType(f.Type) {
+			hasScalar = true
+			break
+		}
+	}
+
+	if hasScalar {
+		f.Func().
+			Params(jen.Id("q").Op("*").Id(sel)).
+			Id("Select").
+			Params(jen.Id("fields").Op("...").Id(fmt.Sprintf("%vField", tp.Name))).
+			Op("*").Id(sel).
+			BlockFunc(func(body *jen.Group) {
+				body.For(jen.List(jen.Id("_"), jen.Id("f")).Op(":=").Range().Id("fields")).BlockFunc(func(loop *jen.Group) {
+					loop.Id("q").Dot("field").Dot("Children").
+						Op("=").Append(
+						jen.Id("q").Dot("field").Dot("Children"),
+						jen.Id("f").Dot("GetField").Call(),
+					)
+				})
+				body.Return(jen.Id("q"))
 			})
-			body.Return(jen.Id("q"))
-		})
+	}
 	f.Line()
 
 	for _, child := range tp.Fields {

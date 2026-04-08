@@ -1,31 +1,28 @@
 <% enums.forEach(function(e) { %>
 export enum <%= e.name %> {
-<% e.values.forEach(function(v) { %>
+<% e.values.forEach(function(v) { -%>
     <%= v %> = "<%= v %>",
-<% }); %>
+<% }); -%>
 }
 <% }); %>
-
 <% interfaces.forEach(function(it) { %>
 export interface <%= it.name %> {
-<% it.fields.forEach(function(f) { %>
+<% it.fields.forEach(function(f) { -%>
     <%= f.name %>?: <%= f.type %>;
-<% }); %>
+<% }); -%>
 }
 <% }); %>
-
 <% inputs.forEach(function(inp) { %>
 export interface <%= inp.name %> {
-<% inp.fields.forEach(function(f) { %>
+<% inp.fields.forEach(function(f) { -%>
     <%= f.name %>?: <%= f.type %>;
-<% }); %>
+<% }); -%>
 }
 <% }); %>
-
 <% models.forEach(function(m) { %>
 export interface <%= m.name %> <% if (m.interfaces.length > 0) { %>extends <%= m.interfaces.join(', ') %> <% } %>{
-<% m.fields.forEach(function(f) { %>
+<% m.fields.forEach(function(f) { -%>
     <%= f.name %>?: <%= f.type %>;
-<% }); %>
+<% }); -%>
 }
 <% }); %>

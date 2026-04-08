@@ -70,10 +70,14 @@ class {{ m["name"] }}Selector:
     def __init__(self):
         self.field = Field(name='')
 
+{% set ns = namespace(has_scalar=false) %}
+{% for f in m["fields"] %}{% if not f["is_object"] %}{% set ns.has_scalar = true %}{% endif %}{% endfor %}
+{% if ns.has_scalar %}
     def select(self, *fields: Field{{ m["name"] }}):
         for f in fields:
             self.field.children.append(Field(name=f))
         return self
+{% endif %}
 
 {% for f in m["fields"] %}
 {% if f["is_object"] %}
