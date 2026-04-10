@@ -4,15 +4,15 @@ import * as model from './model.js';
 
 <% ops.forEach(function(op) { %>
 export class <%= op.name_pascal %> {
-    private field: Field;
+    private _field: Field;
 
     constructor() {
-        this.field = new Field("<%= op.name %>");
+        this._field = new Field("<%= op.name %>");
     }
 
 <% op.args.forEach(function(a) { %>
     <%= a.name %>(v: <%= a.is_primitive ? a.type : 'model.' + a.type %>) {
-        this.field.args["<%= a.name %>"] = {
+        this._field.args["<%= a.name %>"] = {
             arg: v,
             arg_type: "<%= a.gql_type %>",
         };
@@ -22,13 +22,13 @@ export class <%= op.name_pascal %> {
 
 <% if (!op.return_is_scalar) { %>
     select(sel: <%= op.return_name %>Selector) {
-        this.field.children.push(...sel.getField().children);
+        this._field.children.push(...sel.getField().children);
         return this;
     }
 <% } %>
 
     build(): [string, Record<string, any>] {
-        return build(this.field, "<%= op.kind %>");
+        return build(this._field, "<%= op.kind %>");
     }
 
     async do(client: Client): Promise<<%= op.return_is_primitive ? op.return_type : 'model.' + op.return_type %> | null> {

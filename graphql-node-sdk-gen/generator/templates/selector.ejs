@@ -53,11 +53,11 @@ export function collectVars(f: Field, vars: Record<string, any>, varTypes: Recor
     }
 }
 
-export function build(field: Field, kind: string): [string, Record<string, any>] {
+export function build(f: Field, kind: string): [string, Record<string, any>] {
     const vars: Record<string, any> = {};
     const varTypes: Record<string, string> = {};
     const counter = { count: 0 };
-    collectVars(field, vars, varTypes, counter);
+    collectVars(f, vars, varTypes, counter);
 
     const keys = Object.keys(varTypes).sort();
     const parts = keys.map(k => `$${k}: ${varTypes[k]}`);
@@ -66,22 +66,22 @@ export function build(field: Field, kind: string): [string, Record<string, any>]
         decl = "(" + decl + ")";
     }
 
-    const body = field.toGraphql("  ", { count: 0 });
+    const body = f.toGraphql("  ", { count: 0 });
     const query = `${kind.toLowerCase()}${decl} {\n${body}}`;
     return [query, vars];
 }
 
 <% selectors.forEach(function(m) { %>
 export class <%= m.name %>Selector {
-    field: Field;
+    _field: Field;
 
     constructor() {
-        this.field = new Field('');
+        this._field = new Field('');
     }
 <% if (m.fields.some(f => !f.is_object)) { %>
     select(...fields: field.Field<%= m.name %>[]) {
         for (const f of fields) {
-            this.field.children.push(new Field(f));
+            this._field.children.push(new Field(f));
         }
         return this;
     }
@@ -91,26 +91,26 @@ export class <%= m.name %>Selector {
 
     <%= f.name %>(<% f.args.forEach(function(arg) { %><%= arg.name %>?: <%= arg.is_primitive ? arg.type : 'model.' + arg.type %>, <% }); %>sel?: <%= f.gql_type %>Selector) {
         if (!sel) return this;
-        sel.field.name = "<%= f.name %>";
+        sel._field.name = "<%= f.name %>";
         <% f.args.forEach(function(arg) { %>
-        sel.field.args["<%= arg.name %>"] = {
+        sel._field.args["<%= arg.name %>"] = {
             arg: <%= arg.name %>,
             arg_type: "<%= arg.gql_type %>"
         };
         <% }); %>
-        this.field.children.push(sel.field);
+        this._field.children.push(sel._field);
         return this;
     }
 <% } else { -%>
 
     <%= f.name %>() {
-        this.field.children.push(new Field("<%= f.name %>"));
+        this._field.children.push(new Field("<%= f.name %>"));
         return this;
     }
 <% } -%>
 <% }); %>
     getField() {
-        return this.field;
+        return this._field;
     }
 }
 <% }); %>

@@ -68,14 +68,14 @@ def build(field: Field, kind: str):
 {% for m in selectors %}
 class {{ m["name"] }}Selector:
     def __init__(self):
-        self.field = Field(name='')
+        self._field = Field(name='')
 
 {% set ns = namespace(has_scalar=false) %}
 {% for f in m["fields"] %}{% if not f["is_object"] %}{% set ns.has_scalar = true %}{% endif %}{% endfor %}
 {% if ns.has_scalar %}
     def select(self, *fields: Field{{ m["name"] }}):
         for f in fields:
-            self.field.children.append(Field(name=f))
+            self._field.children.append(Field(name=f))
         return self
 {% endif %}
 
@@ -84,32 +84,32 @@ class {{ m["name"] }}Selector:
 
     {% if f["args_str"] %}
     def {{ f["name"] }}(self, {{ f["args_str"] }}, sel: {{ f["gql_type"] }}Selector):
-        sel.field.name = "{{ f["name"] }}"
+        sel._field.name = "{{ f["name"] }}"
         {% for arg in f["args"] %}
-        sel.field.args["{{ arg['name'] }}"] = {
+        sel._field.args["{{ arg['name'] }}"] = {
             "arg": {{ arg['name'] }},
             "arg_type": "{{ arg['gql_type'] }}"
         }
         {% endfor %}
-        self.field.children.append(sel.field)
+        self._field.children.append(sel._field)
 
         return self
     {% else %}
     def {{ f["name"] }}(self, sel: {{ f["gql_type"] }}Selector):
-        sel.field.name = "{{ f["name"] }}"
-        self.field.children.append(sel.field)
+        sel._field.name = "{{ f["name"] }}"
+        self._field.children.append(sel._field)
         return self
     {% endif %}
 
 {% else %}
     # Scalar field
     def {{ f["name"] }}(self):
-        self.field.children.append(Field(name="{{ f["name"] }}"))
+        self._field.children.append(Field(name="{{ f["name"] }}"))
         return self
 
 {% endif %}
 {% endfor %}
     def get_field(self):
-        return self.field
+        return self._field
 
 {% endfor %}
